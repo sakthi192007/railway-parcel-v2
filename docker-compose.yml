@@ -1,0 +1,38 @@
+services:
+
+  mysql:
+    image: mysql:8.4
+    container_name: railway-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: S@kthi19
+      MYSQL_DATABASE: railway_parcel
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pS@kthi19"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+    container_name: railway-backend
+    ports:
+      - "8083:8083"
+    environment:
+      SERVER_PORT: 8083
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: S@kthi19
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
