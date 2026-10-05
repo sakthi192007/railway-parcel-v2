@@ -1,9 +1,0 @@
-com\railway\parcel\model\StatusRequest.class
-com\railway\parcel\service\ParcelService.class
-com\railway\parcel\model\Parcel.class
-com\railway\parcel\ParcelManagementApplication.class
-com\railway\parcel\controller\ParcelController.class
-com\railway\parcel\model\Train.class
-com\railway\parcel\repository\ParcelRepository.class
-com\railway\parcel\model\BookingRequest.class
-com\railway\parcel\model\Customer.class
