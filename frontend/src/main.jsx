@@ -47,6 +47,12 @@ function App() {
     setLoading(false);
   };
 
+  // NEW: reload only the customers list (used after adding a customer)
+  const reloadCustomers = async () => {
+    const res = await api.get("/customers");
+    setCustomers(res.data);
+  };
+
   useEffect(() => {
     loadAll();
   }, []);
@@ -280,6 +286,7 @@ function App() {
           {tab === "book" && (
             <BookParcelPage
               customers={customers}
+              reloadCustomers={reloadCustomers}
               trainList={trainList}
               notify={notify}
               onBooked={async () => {
@@ -464,7 +471,7 @@ function ParcelsPage({
 
 /* ================= BOOK PARCEL PAGE ================= */
 
-function BookParcelPage({ customers, trainList, notify, onBooked, onCancel }) {
+function BookParcelPage({ customers, reloadCustomers, trainList, notify, onBooked, onCancel }) {
   const [form, setForm] = useState({
     customerId: "",
     trainId: "",
@@ -474,7 +481,47 @@ function BookParcelPage({ customers, trainList, notify, onBooked, onCancel }) {
   const [chargeOverride, setChargeOverride] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  // NEW: add-customer popup state
+  const [showNew, setShowNew] = useState(false);
+  const [newCust, setNewCust] = useState({ name: "", phone: "", email: "", address: "" });
+  const [savingCust, setSavingCust] = useState(false);
+
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  // NEW: open the popup when "+ Add new customer" is picked
+  const onCustomerChange = (e) => {
+    if (e.target.value === "__new__") {
+      setShowNew(true);
+      return; // keep the dropdown on its current value
+    }
+    setForm({ ...form, customerId: e.target.value });
+  };
+
+  // NEW: save the customer, reload the list, auto-select the new one
+  const saveCustomer = async () => {
+    if (!newCust.name.trim() || !newCust.phone.trim()) {
+      notify("error", "Customer name and phone are required.");
+      return;
+    }
+    setSavingCust(true);
+    try {
+      const res = await api.post("/customers", {
+        name: newCust.name.trim(),
+        phone: newCust.phone.trim(),
+        email: newCust.email.trim(),
+        address: newCust.address.trim(),
+      });
+      await reloadCustomers();
+      setForm((f) => ({ ...f, customerId: String(res.data.customerId) }));
+      setNewCust({ name: "", phone: "", email: "", address: "" });
+      setShowNew(false);
+      notify("ok", "Customer added.");
+    } catch (err) {
+      notify("error", errText(err, "Could not add customer"));
+    } finally {
+      setSavingCust(false);
+    }
+  };
 
   const autoCharge = form.weightKg ? Math.round(Number(form.weightKg) * RATE_PER_KG) : 0;
   const charge = chargeOverride ?? autoCharge;
@@ -516,13 +563,14 @@ function BookParcelPage({ customers, trainList, notify, onBooked, onCancel }) {
       <form className="form-body" onSubmit={submit}>
         <div className="form-grid">
           <Field label="Customer">
-            <select required value={form.customerId} onChange={set("customerId")}>
+            <select required value={form.customerId} onChange={onCustomerChange}>
               <option value="">Select customer</option>
               {customers.map((c) => (
                 <option key={c.customerId} value={c.customerId}>
                   {c.name} · {c.phone}
                 </option>
               ))}
+              <option value="__new__">＋ Add new customer</option>
             </select>
           </Field>
 
@@ -578,6 +626,51 @@ function BookParcelPage({ customers, trainList, notify, onBooked, onCancel }) {
           </button>
         </div>
       </form>
+
+      {/* NEW: customer popup (outside the <form> so it doesn't submit the booking) */}
+      {showNew && (
+        <div className="modal-backdrop" onClick={() => setShowNew(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>New customer</h3>
+            <div className="form-grid single">
+              <Field label="Name">
+                <input
+                  autoFocus
+                  value={newCust.name}
+                  onChange={(e) => setNewCust({ ...newCust, name: e.target.value })}
+                />
+              </Field>
+              <Field label="Phone">
+                <input
+                  value={newCust.phone}
+                  onChange={(e) => setNewCust({ ...newCust, phone: e.target.value })}
+                />
+              </Field>
+              <Field label="Email (optional)">
+                <input
+                  type="email"
+                  value={newCust.email}
+                  onChange={(e) => setNewCust({ ...newCust, email: e.target.value })}
+                />
+              </Field>
+              <Field label="Address (optional)">
+                <input
+                  value={newCust.address}
+                  onChange={(e) => setNewCust({ ...newCust, address: e.target.value })}
+                />
+              </Field>
+            </div>
+            <div className="form-actions">
+              <button type="button" className="btn-secondary" onClick={() => setShowNew(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={saveCustomer} disabled={savingCust}>
+                {savingCust ? "Saving..." : "Save customer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

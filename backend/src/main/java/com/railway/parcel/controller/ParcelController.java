@@ -16,6 +16,13 @@ public class ParcelController {
     public ParcelController(ParcelService service){this.service=service;}
 
     @GetMapping("/customers") public List<Customer> customers(){return service.customers();}
+
+    @PostMapping("/customers")
+    public ResponseEntity<Map<String,Object>> addCustomer(@Valid @RequestBody CustomerRequest request){
+        Long id = service.addCustomer(request);
+        return ResponseEntity.ok(Map.of("message","Customer added","customerId",id));
+    }
+
     @GetMapping("/trains") public List<Train> trains(){return service.trains();}
     @GetMapping("/trains/above-average") public List<Train> aboveAverage(){return service.aboveAverage();}
     @GetMapping("/parcels") public List<Parcel> parcels(){return service.parcels();}

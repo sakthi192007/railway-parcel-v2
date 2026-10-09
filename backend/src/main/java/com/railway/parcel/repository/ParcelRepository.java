@@ -6,8 +6,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlOutParameter;
 import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.core.simple.SimpleJdbcCall;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.sql.Types;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +50,38 @@ public class ParcelRepository {
                         r.getString("address")
                 )
         );
+    }
+
+    // ---------------------------------------------------------
+    // ADD CUSTOMER (new)
+    // ---------------------------------------------------------
+
+    public Long addCustomer(CustomerRequest r) {
+
+        String sql = """
+                INSERT INTO customers (name, phone, email, address)
+                VALUES (?, ?, ?, ?)
+                """;
+
+        KeyHolder keys = new GeneratedKeyHolder();
+
+        jdbc.update(con -> {
+            PreparedStatement ps =
+                    con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, r.name());
+            ps.setString(2, r.phone());
+            ps.setString(3, r.email());
+            ps.setString(4, r.address());
+            return ps;
+        }, keys);
+
+        Number id = keys.getKey();
+
+        if (id == null) {
+            throw new RuntimeException("Failed to create customer");
+        }
+
+        return id.longValue();
     }
 
     // ---------------------------------------------------------
@@ -183,63 +219,41 @@ public class ParcelRepository {
 
     // ---------------------------------------------------------
     // BOOK PARCEL
-    // MySQL INSERT
+    // Calls MySQL BOOK_PARCEL procedure
     // ---------------------------------------------------------
 
-  // ---------------------------------------------------------
-// BOOK PARCEL
-// Calls MySQL BOOK_PARCEL procedure
-// ---------------------------------------------------------
+    public Long book(BookingRequest b) {
 
-public Long book(BookingRequest b) {
+        SimpleJdbcCall call =
+                new SimpleJdbcCall(jdbc)
+                        .withProcedureName("BOOK_PARCEL")
+                        .declareParameters(
+                                new SqlParameter("P_CUSTOMER_ID", Types.BIGINT),
+                                new SqlParameter("P_TRAIN_ID", Types.BIGINT),
+                                new SqlParameter("P_DESCRIPTION", Types.VARCHAR),
+                                new SqlParameter("P_WEIGHT", Types.DECIMAL),
+                                new SqlOutParameter("P_PARCEL_ID", Types.BIGINT)
+                        );
 
-    SimpleJdbcCall call =
-            new SimpleJdbcCall(jdbc)
-                    .withProcedureName("BOOK_PARCEL")  // ← THIS LINE
-                    .declareParameters(
-                            new SqlParameter(
-                                    "P_CUSTOMER_ID",
-                                    Types.BIGINT
-                            ),
-                            new SqlParameter(
-                                    "P_TRAIN_ID",
-                                    Types.BIGINT
-                            ),
-                            new SqlParameter(
-                                    "P_DESCRIPTION",
-                                    Types.VARCHAR
-                            ),
-                            new SqlParameter(
-                                    "P_WEIGHT",
-                                    Types.DECIMAL
-                            ),
-                            new SqlOutParameter(
-                                    "P_PARCEL_ID",
-                                    Types.BIGINT
-                            )
-                    );
+        Map<String, Object> result =
+                call.execute(
+                        Map.of(
+                                "P_CUSTOMER_ID", b.customerId(),
+                                "P_TRAIN_ID", b.trainId(),
+                                "P_DESCRIPTION", b.description(),
+                                "P_WEIGHT", b.weight()
+                        )
+                );
 
-    Map<String, Object> result =
-            call.execute(
-                    Map.of(
-                            "P_CUSTOMER_ID", b.customerId(),
-                            "P_TRAIN_ID", b.trainId(),
-                            "P_DESCRIPTION", b.description(),
-                            "P_WEIGHT", b.weight()
-                    )
-            );
+        Number parcelId = (Number) result.get("P_PARCEL_ID");
 
-    Number parcelId =
-            (Number) result.get("P_PARCEL_ID");
+        if (parcelId == null) {
+            throw new RuntimeException("Failed to generate parcel ID");
+        }
 
-    if (parcelId == null) {
-        throw new RuntimeException(
-                "Failed to generate parcel ID"
-        );
+        return parcelId.longValue();
     }
 
-    return parcelId.longValue();
-}
     // ---------------------------------------------------------
     // UPDATE STATUS
     // ---------------------------------------------------------
@@ -255,9 +269,7 @@ public Long book(BookingRequest b) {
         int rows = jdbc.update(sql, status, id);
 
         if (rows == 0) {
-            throw new RuntimeException(
-                    "Parcel not found: " + id
-            );
+            throw new RuntimeException("Parcel not found: " + id);
         }
     }
 

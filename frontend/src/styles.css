@@ -1437,4 +1437,26 @@ table.compact {
     padding: 4px 18px 22px;
     grid-template-columns: 1fr;
   }
+}.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(10, 31, 56, 0.5);
+}
+
+.modal {
+  width: 100%;
+  max-width: 440px;
+  padding: 24px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.modal h3 {
+  margin-bottom: 16px;
+  font-size: 18px;
 }

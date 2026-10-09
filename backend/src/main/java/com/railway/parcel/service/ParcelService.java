@@ -11,6 +11,7 @@ public class ParcelService {
     private final ParcelRepository repo;
     public ParcelService(ParcelRepository repo){this.repo=repo;}
     public List<Customer> customers(){return repo.customers();}
+    public Long addCustomer(CustomerRequest r){return repo.addCustomer(r);}
     public List<Train> trains(){return repo.trains();}
     public List<Train> aboveAverage(){return repo.aboveAverage();}
     public List<Parcel> parcels(){return repo.parcels();}
